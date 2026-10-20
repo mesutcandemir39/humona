@@ -1,0 +1,7 @@
+{
+  "channel": "stable",
+  "latest": "3.0.0",
+  "min_supported": "2.12.0",
+  "yanked": [],
+  "notes": "Read by `humona upgrade` from the upstream branch before it applies anything. `yanked` lists versions nobody should move to; `min_supported` is the oldest version that still receives fixes."
+}

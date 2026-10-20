@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512"
+     role="img" aria-label="humona">
+  <title>humona</title>
+  <desc>A human eye drawn as a lens, with remembered facts drifting in and gathering in the pupil.</desc>
+
+  <defs>
+    <path id="lens" d="M24 256C24 256 110 136 256 136s232 120 232 120-86 120-232 120S24 256 24 256Z"/>
+    <clipPath id="inside"><use href="#lens"/></clipPath>
+  </defs>
+
+  <!-- what the eye has taken in: nearer the pupil, shorter and brighter -->
+  <g clip-path="url(#inside)" fill="#10b981">
+    <g opacity=".45">
+      <rect x="118" y="191" width="58" height="10" rx="5"/>
+      <rect x="336" y="191" width="58" height="10" rx="5"/>
+      <rect x="118" y="311" width="58" height="10" rx="5"/>
+      <rect x="336" y="311" width="58" height="10" rx="5"/>
+    </g>
+    <g opacity=".7">
+      <rect x="150" y="219" width="54" height="10" rx="5"/>
+      <rect x="308" y="219" width="54" height="10" rx="5"/>
+      <rect x="150" y="283" width="54" height="10" rx="5"/>
+      <rect x="308" y="283" width="54" height="10" rx="5"/>
+    </g>
+    <g opacity=".35">
+      <rect x="96" y="251" width="46" height="10" rx="5"/>
+      <rect x="370" y="251" width="46" height="10" rx="5"/>
+    </g>
+  </g>
+
+  <!-- the lens -->
+  <use href="#lens" fill="none" stroke="#10b981" stroke-width="22" stroke-linejoin="round"/>
+
+  <!-- the pupil: everything that was kept -->
+  <circle cx="256" cy="256" r="62" fill="#10b981"/>
+  <circle cx="234" cy="234" r="15" fill="#ecfdf5" opacity=".92"/>
+</svg>

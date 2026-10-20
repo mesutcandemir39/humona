@@ -1,0 +1,22 @@
+{
+  "name": "humona",
+  "version": "3.0.0",
+  "description": "Human-inspired memory for AI agents: Markdown notes in your own git repo, no database, no service, no inference to remember.",
+  "author": {
+    "name": "Mesut Can Demir"
+  },
+  "repository": "https://github.com/mesutcandemir39/humona",
+  "homepage": "https://github.com/mesutcandemir39/humona#readme",
+  "license": "MIT",
+  "keywords": [
+    "memory",
+    "claude-code",
+    "markdown",
+    "git",
+    "obsidian",
+    "context-engineering",
+    "offline",
+    "zero-dependency",
+    "mcp"
+  ]
+}

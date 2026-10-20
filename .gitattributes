@@ -1,0 +1,3 @@
+# union merge: concurrent edits from two machines keep both sides instead of conflicting
+*.md merge=union text eol=lf
+*.py text eol=lf

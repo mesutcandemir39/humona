@@ -1,0 +1,3 @@
+#!/bin/sh
+# alias kept for installs made before the 3.0 rename
+exec python3 "$(dirname "$0")/../engine/humona.py" "$@"

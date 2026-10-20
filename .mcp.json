@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "memory": {
+      "command": "python3",
+      "args": ["${CLAUDE_PLUGIN_ROOT}/engine/humona.py", "mcp"]
+    }
+  }
+}
