@@ -1,0 +1,16 @@
+{
+  "name": "humona",
+  "description": "Human-inspired memory for AI agents, as plain Markdown in a git repository you own.",
+  "owner": {
+    "name": "Mesut Can Demir",
+    "url": "https://github.com/mesutcandemir39"
+  },
+  "plugins": [
+    {
+      "name": "humona",
+      "source": ".",
+      "description": "Memory that survives every session: project cards, working memory, tasks, long-term notes and episodes, injected at session start for ~480 tokens.",
+      "version": "3.0.0"
+    }
+  ]
+}

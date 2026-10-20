@@ -1,0 +1,52 @@
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        python: ["3.9", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      # The engine is stdlib-only and the suite runs in a throwaway vault: no install step.
+      - run: python tests/test_humona.py
+
+  # The install the README and AGENTS.md promise, run on a profile that has never seen this tool.
+  # It lives in its own job because the installer writes to the user profile (and on Windows edits
+  # the user PATH), which is fine on an ephemeral runner and not fine inside the unit suite.
+  install:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: install into this runner's profile
+        run: python setup/install.py
+      - name: doctor must pass with no FAIL
+        shell: bash
+        run: |
+          out=$(python engine/humona.py doctor || true)
+          echo "$out"
+          echo "$out" | grep -q FAIL && exit 1
+          echo "$out" | grep -q "checks passed"
+      - name: write and find a note
+        shell: bash
+        run: |
+          python engine/humona.py remember -t semantic --global "CI check" "Written by CI."
+          python engine/humona.py search "CI check" | grep -q ci-check
