@@ -38,6 +38,10 @@ One dependency-free Python file and your notes.
 /plugin install humona --marketplace mesutcandemir39/humona
 ```
 
+<p align="center">
+  <img src="docs/session-start.gif" width="760" alt="a session starting with the project card, working memory and recent episodes already loaded">
+</p>
+
 ---
 
 ## Install
