@@ -1343,5 +1343,47 @@ class TestInstallLayout(BrainCase):
         self.assertNotIn("VAULT", body)
 
 
+class TestWheelInstall(BrainCase):
+    """A wheel has no checkout around the engine, so `packaging/pypi/build.py` ships a mini-checkout
+    at `humona/_payload/` and marks it with PYPI_WHEEL. Both things the marker controls are here,
+    because a refactor that drops it breaks a pip install silently rather than loudly."""
+
+    def payload(self):
+        """The layout a wheel installs: engine/humona.py beside the marker, no .git anywhere."""
+        root = self.tmp / "site-packages" / "humona" / "_payload"
+        (root / "engine").mkdir(parents=True)
+        shutil.copy(ENGINE, root / "engine" / "humona.py")
+        (root / "PYPI_WHEEL").write_text("test\n", encoding="utf-8")
+        return root
+
+    def run_payload(self, root, *args, **kw):
+        env = {k: v for k, v in self.env.items() if k not in kw.pop("drop", ())}
+        return subprocess.run([sys.executable, str(root / "engine" / "humona.py")] + list(args),
+                              capture_output=True, text=True, encoding="utf-8", env=env,
+                              cwd=str(self.tmp), timeout=60)
+
+    def test_upgrade_points_at_pip_instead_of_git(self):
+        r = self.run_payload(self.payload(), "upgrade")
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("pip install -U humona", r.stdout)
+        self.assertNotIn("git clone", r.stdout)
+
+    def test_vault_never_defaults_inside_site_packages(self):
+        """site-packages is replaced on every `pip install -U`, so memory there would be deleted."""
+        root = self.payload()
+        home = self.tmp / "home"
+        home.mkdir()
+        env = {k: v for k, v in self.env.items() if k not in ("HUMONA_VAULT", "HUMONA_STATE")}
+        env["HOME"] = env["USERPROFILE"] = str(home)      # Path.home() reads one or the other
+        r = subprocess.run([sys.executable, str(root / "engine" / "humona.py"), "vault"],
+                           capture_output=True, text=True, encoding="utf-8", env=env,
+                           cwd=str(self.tmp), timeout=60)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        vault_line = [l for l in r.stdout.splitlines() if l.startswith("vault:")][0]
+        self.assertNotIn(str(root), vault_line)       # `code:` may name it; the vault may not
+        self.assertIn(str(home), vault_line)
+        self.assertIn("no checkout to fall back on", r.stdout)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

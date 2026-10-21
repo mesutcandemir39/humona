@@ -31,6 +31,8 @@ TAG = "humona"              # prefix of the XML elements the hooks inject
 RULES_START = "<!-- humona:start -->"
 RULES_END = "<!-- humona:end -->"
 CODE = Path(__file__).resolve().parents[1]  # the checkout: engine/, setup/, skills/, tests/
+# A wheel has no checkout to pull from, so it bundles the payload as a mini-checkout and marks it.
+WHEEL = (CODE / "PYPI_WHEEL").exists()
 # True when Claude Code is running us from a plugin it installed. Set for hook, MCP and LSP
 # processes; the path check covers a `bin/humona` call, which the plugin puts on PATH.
 PLUGIN = bool(os.environ.get("CLAUDE_PLUGIN_ROOT")) or "/plugins/" in CODE.as_posix()
@@ -87,10 +89,11 @@ def _vault_dir():
             return Path(cfg["vault"]).expanduser()
     except Exception:
         pass
-    if PLUGIN:
-        # Installed as a Claude Code plugin: every version gets its own cache directory, so the
-        # checkout is the one place memory must never live. `~/humona/vault` is the documented
-        # default the installer also picks, which keeps both install paths on the same vault.
+    if PLUGIN or WHEEL:
+        # Installed as a Claude Code plugin, or from a wheel: a plugin gets a fresh cache directory
+        # per version and a wheel's payload is replaced inside site-packages, so the code is the one
+        # place memory must never live. `~/humona/vault` is the documented default the installer
+        # also picks, which keeps every install path on the same vault.
         return Path.home() / NAME / "vault"
     return CODE
 
@@ -3570,6 +3573,9 @@ def cmd_upgrade(a):
     local edit can only stop the upgrade, not be silently rewritten), then the test suite, the
     installer and doctor. Nothing is applied before the user sees the version it moves to.
     """
+    if WHEEL:
+        print("installed from a wheel — upgrade with:\n  pip install -U %s" % NAME)
+        return 1
     if not (CODE / ".git").exists():
         print("not a git checkout: %s\n  reinstall with: git clone <repo> && python3 setup/install.py" % CODE)
         return 1
@@ -3666,7 +3672,8 @@ def cmd_vault(a):
         print("code:   %s" % CODE)
         print("set by: %s" % ("HUMONA_VAULT" if envvar("VAULT") else
                               "installer config (%s)" % (STATE / "config.json") if cfg.get("vault")
-                              else "default (the checkout itself)"))
+                              else "default (~/%s/vault — no checkout to fall back on)" % NAME
+                              if PLUGIN or WHEEL else "default (the checkout itself)"))
         return 0
     dest = Path(a.dir).expanduser().resolve()
     if a.move and MEM.is_dir():

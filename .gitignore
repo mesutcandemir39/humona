@@ -7,3 +7,7 @@ memory/private/
 __pycache__/
 *.pyc
 .DS_Store
+# build artefacts (packaging/pypi/build.py writes dist/; a root build leaves the others)
+dist/
+build/
+*.egg-info/

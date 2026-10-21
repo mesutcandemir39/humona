@@ -2,31 +2,31 @@
 
 # Engine map — `engine/humona.py`
 
-3962 lines, 21 sections, standard library only. Everything before the first section (3 statements) is imports, paths and constants.
+3969 lines, 21 sections, standard library only. Everything before the first section (3 statements) is imports, paths and constants.
 
 | lines | section | what it holds |
 |---|---|---|
-| 166–553 | **helpers** | `now`, `today`, `oneline`, `fold`, `slug`, `redact`, `load_json`, `save_json` … |
-| 554–676 | **typed decisions (OpenAI-compatible provider; pluggable backend)** | `llm_cfg`, `llm_json`, `decide`, `cmd_decide`, `cmd_llm` |
-| 677–754 | **sensory memory** | `capture_paused`, `fresh_until`, `cmd_pause`, `cmd_resume`, `cmd_sense`, `sensory_events` |
-| 755–1024 | **short-term memory (consolidation)** | `episode_path`, `new_episode_fm`, `build_trace`, `llm_gist`, `trace_gist`, `transcript_lines`, `transcript_meta`, `transcript_digest` … |
-| 1025–1052 | **working memory** | `working_path`, `cmd_working` |
-| 1053–1221 | **task list (the harness checklist: JSON, verified-or-not-done)** | `tasks_path`, `load_tasks`, `save_tasks`, `open_tasks`, `all_projects`, `last_activity`, `cmd_task`, `board_rows` … |
-| 1222–1293 | **long-term memory** | `cjk_grams`, `stem`, `toks`, `shared_dirs`, `iter_docs` |
-| 1294–1868 | **semantic layer (optional, machine-local; falls back to keyword on any failure)** | `semantic_enabled`, `spawn_daemon`, `daemon_port`, `embed_remote`, `semantic_scores`, `note_gist`, `doc_index`, `search_docs` … |
-| 1869–2003 | **deliberate forgetting (the only command that deletes knowledge)** | `forget_resolve`, `cache_drop`, `inbound_stems`, `forget_targets`, `cmd_forget` |
-| 2004–2242 | **wiki layer (link graph, catalog, lint)** | `link_target`, `link_graph`, `cmd_links`, `dir_indexes`, `cmd_index`, `cmd_lint` |
-| 2243–2321 | **projects** | `cmd_card`, `walk_files`, `cmd_map` |
-| 2322–2408 | **code exploration (token savers: structure before full reads)** | `sym_re`, `outline_file`, `cmd_outline`, `cmd_refs` |
-| 2409–2475 | **knowledge corpora (a queryable corpus built from documents)** | `chunks`, `cmd_ingest`, `cmd_semantic` |
-| 2476–2666 | **Anthropic memory tool (memory_20250818)** | `MTError`, `human_size`, `mt_path`, `mt_name`, `numbered`, `mt_view`, `mt_write`, `memory_tool` … |
-| 2667–2694 | **per-session injection ledger (context is a budget, not a hose)** | `ledger_path`, `ledger`, `ledger_add` |
-| 2695–2794 | **auto-recall (UserPromptSubmit)** | `cmd_hint`, `cmd_autorecall` |
-| 2795–2979 | **session-start context** | `plugin_first_run`, `cmd_context`, `cmd_report`, `cmd_stats` |
-| 2980–3149 | **multi-machine sync (git)** | `git`, `has_remote`, `SyncLock`, `repair_repo`, `fresh`, `set_status`, `safe_pull`, `sync_pull` … |
-| 3150–3258 | **code search (the vault's ranking, pointed at a repository)** | `code_files`, `cmd_code` |
-| 3259–3350 | **MCP (stdio, launched on demand)** | `mcp_call`, `cmd_mcp` |
-| 3351–3962 | **health / maintenance** | `header_fix`, `bad_headers`, `cmd_doctor`, `cmd_update`, `code_git`, `remote_version`, `upstream_tag`, `verify_tag` … |
+| 169–556 | **helpers** | `now`, `today`, `oneline`, `fold`, `slug`, `redact`, `load_json`, `save_json` … |
+| 557–679 | **typed decisions (OpenAI-compatible provider; pluggable backend)** | `llm_cfg`, `llm_json`, `decide`, `cmd_decide`, `cmd_llm` |
+| 680–757 | **sensory memory** | `capture_paused`, `fresh_until`, `cmd_pause`, `cmd_resume`, `cmd_sense`, `sensory_events` |
+| 758–1027 | **short-term memory (consolidation)** | `episode_path`, `new_episode_fm`, `build_trace`, `llm_gist`, `trace_gist`, `transcript_lines`, `transcript_meta`, `transcript_digest` … |
+| 1028–1055 | **working memory** | `working_path`, `cmd_working` |
+| 1056–1224 | **task list (the harness checklist: JSON, verified-or-not-done)** | `tasks_path`, `load_tasks`, `save_tasks`, `open_tasks`, `all_projects`, `last_activity`, `cmd_task`, `board_rows` … |
+| 1225–1296 | **long-term memory** | `cjk_grams`, `stem`, `toks`, `shared_dirs`, `iter_docs` |
+| 1297–1871 | **semantic layer (optional, machine-local; falls back to keyword on any failure)** | `semantic_enabled`, `spawn_daemon`, `daemon_port`, `embed_remote`, `semantic_scores`, `note_gist`, `doc_index`, `search_docs` … |
+| 1872–2006 | **deliberate forgetting (the only command that deletes knowledge)** | `forget_resolve`, `cache_drop`, `inbound_stems`, `forget_targets`, `cmd_forget` |
+| 2007–2245 | **wiki layer (link graph, catalog, lint)** | `link_target`, `link_graph`, `cmd_links`, `dir_indexes`, `cmd_index`, `cmd_lint` |
+| 2246–2324 | **projects** | `cmd_card`, `walk_files`, `cmd_map` |
+| 2325–2411 | **code exploration (token savers: structure before full reads)** | `sym_re`, `outline_file`, `cmd_outline`, `cmd_refs` |
+| 2412–2478 | **knowledge corpora (a queryable corpus built from documents)** | `chunks`, `cmd_ingest`, `cmd_semantic` |
+| 2479–2669 | **Anthropic memory tool (memory_20250818)** | `MTError`, `human_size`, `mt_path`, `mt_name`, `numbered`, `mt_view`, `mt_write`, `memory_tool` … |
+| 2670–2697 | **per-session injection ledger (context is a budget, not a hose)** | `ledger_path`, `ledger`, `ledger_add` |
+| 2698–2797 | **auto-recall (UserPromptSubmit)** | `cmd_hint`, `cmd_autorecall` |
+| 2798–2982 | **session-start context** | `plugin_first_run`, `cmd_context`, `cmd_report`, `cmd_stats` |
+| 2983–3152 | **multi-machine sync (git)** | `git`, `has_remote`, `SyncLock`, `repair_repo`, `fresh`, `set_status`, `safe_pull`, `sync_pull` … |
+| 3153–3261 | **code search (the vault's ranking, pointed at a repository)** | `code_files`, `cmd_code` |
+| 3262–3353 | **MCP (stdio, launched on demand)** | `mcp_call`, `cmd_mcp` |
+| 3354–3969 | **health / maintenance** | `header_fix`, `bad_headers`, `cmd_doctor`, `cmd_update`, `code_git`, `remote_version`, `upstream_tag`, `verify_tag` … |
 
 Rules that shape this file, from `CLAUDE.md`: standard library only; a hook may never block a session, so `urllib` and `difflib` are imported lazily and git runs in its own process group with a timeout; every model-chosen path goes through `inside()` (or `readable()` when the shared vault may answer), and `/memories` paths through `mt_path()`.
 

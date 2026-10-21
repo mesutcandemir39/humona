@@ -16,6 +16,9 @@ engine driven by hooks. The vault in `memory/` is the user's own memory; the cod
 - `engine/embed.py` — optional semantic daemon (fastembed), machine-local venv, never required.
 - `setup/install.py` — writes `~/.claude/settings.json` hooks, the CLAUDE.md rules block, skills,
   `humona` on PATH. `setup/CLAUDE.md` is the source of the always-loaded user rules — edit it there.
+- `packaging/pypi/build.py` — builds the PyPI wheel from a staging copy, because the engine needs
+  a checkout around it. Never `uv build` at the root: that ships the module alone. See
+  `packaging/README.md`.
 - `tests/test_humona.py` — every test runs in a throwaway vault via `HUMONA_VAULT`/`HUMONA_STATE`/
   `BRAIN_CC_PROJECTS`, so the suite never touches real memory.
 - `memory/` — the vault. Never rewrite notes by hand in bulk; use the CLI so caches stay valid.
