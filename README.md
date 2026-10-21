@@ -23,7 +23,8 @@
   <a href="#swot">SWOT</a> ·
   <a href="VERSIONING.md">Versioning</a> ·
   <a href="SECURITY.md">Security</a> ·
-  <a href="CONTRIBUTING.md">Contributing</a>
+  <a href="CONTRIBUTING.md">Contributing</a> ·
+  <a href="https://github.com/mesutcandemir39/humona/discussions">Discussions</a>
 </p>
 
 Every session starts already knowing your projects,
