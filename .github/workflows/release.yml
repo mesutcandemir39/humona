@@ -20,6 +20,8 @@ jobs:
   # manifests carry. A release that disagrees with itself is how a wrong version reaches users.
   verify:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-python@v6
@@ -40,6 +42,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: pypi
     permissions:
+      contents: read
       id-token: write          # the OIDC token PyPI checks; no username/password is passed
     steps:
       - uses: actions/checkout@v5
