@@ -54,7 +54,8 @@ jobs:
     needs: verify
     if: inputs.target != 'pypi'
     runs-on: ubuntu-latest
-    permissions:
+    environment: npm          # the name npm's trusted publisher is registered with; both sides
+    permissions:              # must say the same thing or the publish is refused
       id-token: write
       contents: read
     steps:
