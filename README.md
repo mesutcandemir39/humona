@@ -10,6 +10,14 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/mesutcandemir39/humona/actions/workflows/test.yml"><img alt="tests" src="https://img.shields.io/github/actions/workflow/status/mesutcandemir39/humona/test.yml?branch=main&style=flat-square&label=tests&logo=github"></a>
+  <a href="#measured-and-reproducible-by-you"><img alt="platforms" src="https://img.shields.io/badge/tested%20on-macOS%20%C2%B7%20Linux%20%C2%B7%20Windows-10b981?style=flat-square"></a>
+  <a href="pyproject.toml"><img alt="python" src="https://img.shields.io/badge/python-3.8%2B-10b981?style=flat-square&logo=python&logoColor=white"></a>
+  <a href="#install"><img alt="dependencies" src="https://img.shields.io/badge/runtime%20deps-0-10b981?style=flat-square"></a>
+  <a href="LICENSE"><img alt="license" src="https://img.shields.io/badge/license-MIT-10b981?style=flat-square"></a>
+</p>
+
+<p align="center">
   <a href="#install">Install</a> ·
   <a href="#measured-and-reproducible-by-you">Measured</a> ·
   <a href="#swot">SWOT</a> ·
