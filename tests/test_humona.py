@@ -23,7 +23,9 @@ ENGINE = REPO / "engine" / "humona.py"
 
 class BrainCase(unittest.TestCase):
     def setUp(self):
-        self.tmp = Path(tempfile.mkdtemp(prefix="humona-test-"))
+        # .resolve() because Windows hands back an 8.3 short path (RUNNER~1) and macOS a /var
+        # symlink, while the engine prints the real one — the comparisons below must line up
+        self.tmp = Path(tempfile.mkdtemp(prefix="humona-test-")).resolve()
         self.env = dict(os.environ, HUMONA_VAULT=str(self.tmp / "vault"), HUMONA_STATE=str(self.tmp / "state"),
                         HUMONA_CC_PROJECTS=str(self.tmp / "cc"), HUMONA_NO_SYNC="1")
         self.env.pop("VIRTUAL_ENV", None)
@@ -36,7 +38,7 @@ class BrainCase(unittest.TestCase):
     def brain(self, *args, stdin="", expect_ok=True):
         # cwd is the workspace root of the throwaway vault, so project detection is isolated too
         r = subprocess.run([sys.executable, str(ENGINE)] + [str(a) for a in args], input=stdin,
-                           capture_output=True, text=True, env=self.env, cwd=str(self.tmp), timeout=60)
+                           capture_output=True, text=True, encoding="utf-8", env=self.env, cwd=str(self.tmp), timeout=60)
         if expect_ok:
             self.assertEqual(r.returncode, 0, "`brain %s` failed: %s" % (" ".join(map(str, args)), r.stderr))
             return r.stdout
@@ -58,7 +60,7 @@ class TestLongTermMemory(BrainCase):
         out = self.brain("remember", "-t", "procedural", "--global", "--into",
                          "3-LongTerm/Procedural/release-steps.md", "Release steps", "Then announce.")
         self.assertIn("UPDATED", out)
-        body = (self.mem / "3-LongTerm/Procedural/release-steps.md").read_text()
+        body = (self.mem / "3-LongTerm/Procedural/release-steps.md").read_text(encoding="utf-8")
         self.assertIn("Tag, then push.", body)
         self.assertIn("Then announce.", body)
 
@@ -68,7 +70,7 @@ class TestLongTermMemory(BrainCase):
         out = self.brain("remember", "-t", "semantic", "--global", "--supersedes", old,
                          "Deploy target", "We deploy to Fly.io since 2026-10.")
         self.assertIn("SUPERSEDED", out)
-        self.assertIn("superseded_by: 3-LongTerm/Semantic/deploy-target-2.md", (self.mem / old).read_text())
+        self.assertIn("superseded_by: 3-LongTerm/Semantic/deploy-target-2.md", (self.mem / old).read_text(encoding="utf-8"))
         hits = self.brain("search", "deploy", "target", "--keyword").splitlines()
         self.assertIn("deploy-target-2.md", hits[0])          # the current note ranks first
         self.assertNotIn(old, self.brain("facts"))            # and history leaves the index
@@ -76,7 +78,7 @@ class TestLongTermMemory(BrainCase):
     def test_private_notes_stay_local(self):
         self.brain("remember", "-t", "semantic", "--global", "--private", "Door code", "The code is 1234.")
         self.assertTrue((self.mem / "private" / "semantic" / "door-code.md").exists())
-        self.assertIn("private", (self.tmp / "vault" / ".gitignore").read_text()
+        self.assertIn("private", (self.tmp / "vault" / ".gitignore").read_text(encoding="utf-8")
                       if (self.tmp / "vault" / ".gitignore").exists() else "private")
 
     def test_facts_index_and_staleness(self):
@@ -169,7 +171,7 @@ class TestForget(BrainCase):
         self.assertEqual([r["path"] for r in out["deleted"]], ["Archive/throwaway-fact.md"])
         self.assertEqual(list((self.mem / "Archive").glob("*.md")), [])
         self.assertIn("(no results)", self.brain("search", "throwaway", "--keyword", "--all"))
-        cached = json.loads((self.tmp / "state" / "idx-Archive.json").read_text()) \
+        cached = json.loads((self.tmp / "state" / "idx-Archive.json").read_text(encoding="utf-8")) \
             if (self.tmp / "state" / "idx-Archive.json").exists() else {}
         self.assertEqual(cached, {})      # no gist of a forgotten note left behind in state
 
@@ -200,7 +202,7 @@ class TestInjectedContext(BrainCase):
     def test_hook_input_never_blocks_on_an_idle_pipe(self):
         """Regression: json.load(stdin) used to wait forever on an inherited empty pipe."""
         pr = subprocess.Popen([sys.executable, str(ENGINE), "context"], stdin=subprocess.PIPE,
-                              stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, env=self.env)
+                              stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding="utf-8", env=self.env)
         try:
             out, _ = pr.communicate(timeout=20)  # stdin stays open and silent
         except subprocess.TimeoutExpired:
@@ -247,11 +249,11 @@ class TestEpisodes(BrainCase):
         log.write_text("\n".join([
             json.dumps({"type": "user", "cwd": str(self.tmp / "work")}),
             json.dumps({"type": "assistant", "message": {"content": [{"type": "text", "text": reply}]}}),
-        ]) + "\n")
+        ]) + "\n", encoding="utf-8")
         os.utime(log, (0, __import__("time").time() - 3600))  # ended an hour ago, never consolidated
         self.assertIn("recovered 1", self.brain("catchup"))
         episode = next(iter((self.mem / "1-ShortTerm").glob("*abcd1234.md")))
-        self.assertIn("_(recovered)_", episode.read_text())
+        self.assertIn("_(recovered)_", episode.read_text(encoding="utf-8"))
         self.assertIn("recovered 0", self.brain("catchup"))  # idempotent
 
     def test_working_memory_round_trip(self):
@@ -267,7 +269,7 @@ class TestFrontmatter(BrainCase):
     def test_a_colon_in_the_title_is_quoted(self):
         self.brain("remember", "-t", "semantic", "--global", "Deploy: part two", "Two stages now.")
         note = self.mem / "3-LongTerm/Semantic/deploy-part-two.md"
-        self.assertIn('title: "Deploy: part two"', note.read_text())
+        self.assertIn('title: "Deploy: part two"', note.read_text(encoding="utf-8"))
         titles = [n["title"] for n in json.loads(self.brain("facts", "--json"))["notes"]]
         self.assertIn("Deploy: part two", titles)  # read back without the quotes
         self.assertIn("OK   frontmatter is valid YAML", self.brain("doctor", expect_ok=False))
@@ -275,10 +277,10 @@ class TestFrontmatter(BrainCase):
     def test_quoting_is_idempotent(self):
         self.brain("remember", "-t", "semantic", "--global", "Deploy: part two", "Two stages now.")
         note = self.mem / "3-LongTerm/Semantic/deploy-part-two.md"
-        before = note.read_text()
+        before = note.read_text(encoding="utf-8")
         self.brain("recall", "3-LongTerm/Semantic/deploy-part-two.md")  # rewrites the header
-        self.assertIn('title: "Deploy: part two"', note.read_text())
-        self.assertEqual(before.count('"'), note.read_text().count('"'))
+        self.assertIn('title: "Deploy: part two"', note.read_text(encoding="utf-8"))
+        self.assertEqual(before.count('"'), note.read_text(encoding="utf-8").count('"'))
 
     def test_nested_frontmatter_survives_a_rewrite(self):
         """Regression: recalling a Claude Code auto-memory note used to delete `metadata:`."""
@@ -287,7 +289,7 @@ class TestFrontmatter(BrainCase):
         note.write_text("---\nname: user-identity\ndescription: Who the user is\n"
                         "metadata:\n  type: user\n---\nName: Test Person.\n", encoding="utf-8")
         self.brain("recall", "3-LongTerm/Core/user-identity.md")
-        text = note.read_text()
+        text = note.read_text(encoding="utf-8")
         self.assertIn("metadata:\n  type: user", text)  # the block and its child are untouched
         self.assertIn("recall_count: 1", text)           # and the counter was still added
 
@@ -298,7 +300,7 @@ class TestFrontmatter(BrainCase):
                         "metadata:\n  type: user\n---\nBody.\n", encoding="utf-8")
         self.assertIn("FAIL frontmatter", self.brain("doctor", expect_ok=False))
         self.brain("doctor", "--fix", expect_ok=False)
-        text = note.read_text()
+        text = note.read_text(encoding="utf-8")
         self.assertIn('title: "Deploy: part two"', text)
         self.assertIn("metadata:\n  type: user", text)
         self.assertIn("OK   frontmatter is valid YAML", self.brain("doctor", expect_ok=False))
@@ -368,7 +370,7 @@ class TestProvider(BrainCase):
         return sid
 
     def episodes(self):
-        return "".join(p.read_text() for p in (self.mem / "1-ShortTerm").glob("*.md"))
+        return "".join(p.read_text(encoding="utf-8") for p in (self.mem / "1-ShortTerm").glob("*.md"))
 
     def test_episode_summaries_stay_heuristic_unless_asked_for(self):
         """The default must never spend tokens to remember."""
@@ -429,7 +431,7 @@ class TestProvider(BrainCase):
         self.answer = {"answer": "update", "confidence": 0.8, "reason": "refines it"}
         out = self.brain("remember", "-t", "semantic", "--global", "--decide", "Deploy target", "Staging too.")
         self.assertIn("UPDATED", out)
-        body = (self.mem / "3-LongTerm/Semantic/deploy-target.md").read_text()
+        body = (self.mem / "3-LongTerm/Semantic/deploy-target.md").read_text(encoding="utf-8")
         self.assertIn("Heroku", body)
         self.assertIn("Staging too.", body)
 
@@ -451,7 +453,7 @@ class TestWikiLayer(BrainCase):
         self.brain("remember", "-t", "semantic", "--global", "Vault layout", "Notes live in memory/.")
         self.brain("remember", "-t", "procedural", "--global", "Deploy: part two", "Two stages now.")
         self.brain("index")
-        index = (self.mem / "index.md").read_text()
+        index = (self.mem / "index.md").read_text(encoding="utf-8")
         self.assertIn("generated by `humona index`", index)
         self.assertIn("[[vault-layout]] — Notes live in memory/.", index)  # no [[x|x]] noise
         self.assertIn("[[deploy-part-two|Deploy: part two]]", index)       # alias when the title differs
@@ -498,7 +500,7 @@ class TestWikiLayer(BrainCase):
         self.brain("remember", "-t", "procedural", "--global", "--source", "1-ShortTerm/" + episode.name,
                    "Sync lock", "Take the lock before touching git.")
         self.assertIn("source: 1-ShortTerm/" + episode.name,
-                      (self.mem / "3-LongTerm/Procedural/sync-lock.md").read_text())
+                      (self.mem / "3-LongTerm/Procedural/sync-lock.md").read_text(encoding="utf-8"))
 
 
 class TestRankingCache(BrainCase):
@@ -508,7 +510,7 @@ class TestRankingCache(BrainCase):
         self.brain("remember", "-t", "semantic", "--global", "Deploy target", "We deploy to Heroku.")
         self.assertIn("deploy-target.md", self.brain("search", "heroku", "--keyword"))
         note = self.mem / "3-LongTerm/Semantic/deploy-target.md"
-        note.write_text(note.read_text().replace("Heroku", "Fly.io"), encoding="utf-8")
+        note.write_text(note.read_text(encoding="utf-8").replace("Heroku", "Fly.io"), encoding="utf-8")
         self.assertIn("(no results)", self.brain("search", "heroku", "--keyword"))
         self.assertIn("deploy-target.md", self.brain("search", "fly.io", "--keyword"))
 
@@ -560,7 +562,7 @@ class TestContextBudget(BrainCase):
                 "m=iu.module_from_spec(spec); spec.loader.exec_module(m);"
                 "hits=m.search_docs('github testperson identity', 5);"
                 "print(all(h[3] is not None for h in hits) and len(hits) > 0)")
-        r = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True,
+        r = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, encoding="utf-8",
                            env=self.env, cwd=str(self.tmp), timeout=60)
         self.assertEqual(r.stdout.strip(), "True", r.stderr)
 
@@ -586,7 +588,7 @@ class TestTaskList(BrainCase):
         self.brain("task", "add", "Task for general")
         self.brain("task", "add", "Task for another project", "-p", "other-proj")
         self.assertTrue((self.mem / "2-Working" / "general.tasks.json").exists())
-        data = json.loads((self.mem / "2-Working" / "other-proj.tasks.json").read_text())
+        data = json.loads((self.mem / "2-Working" / "other-proj.tasks.json").read_text(encoding="utf-8"))
         self.assertEqual(data["tasks"][0]["what"], "Task for another project")
 
 
@@ -619,7 +621,7 @@ class TestBoardAndRouting(BrainCase):
     def test_board_is_written_into_the_vault(self):
         self.seed()
         self.brain("board")
-        text = (self.mem / "board.md").read_text()
+        text = (self.mem / "board.md").read_text(encoding="utf-8")
         self.assertIn("## work-germany", text)
         self.assertIn("**In flight:**", text)
         self.assertIn("(due 2026-11-01)", text)
@@ -651,7 +653,7 @@ class TestBoardAndRouting(BrainCase):
         self.hook("sense", hook_event_name="UserPromptSubmit", session_id="cut0ff00",
                   prompt="let us migrate the database now")
         self.hook("consolidate", session_id="cut0ff00")
-        episode = "".join(p.read_text() for p in (self.mem / "1-ShortTerm").glob("*cut0ff0*.md"))
+        episode = "".join(p.read_text(encoding="utf-8") for p in (self.mem / "1-ShortTerm").glob("*cut0ff0*.md"))
         self.assertIn("Interrupted while: [1] Migrate the database", episode)
 
 
@@ -678,9 +680,9 @@ class TestMemoryTool(BrainCase):
         self.assertIn("The memory file has been edited.",
                       self.mt(command="str_replace", path="/memories/knowledge/notes.txt",
                               old_str="beta", new_str="gamma")["content"])
-        self.assertIn("gamma", (self.mem / "knowledge/notes.txt").read_text())
+        self.assertIn("gamma", (self.mem / "knowledge/notes.txt").read_text(encoding="utf-8"))
         self.mt(command="insert", path="/memories/knowledge/notes.txt", insert_line=1, insert_text="middle\n")
-        self.assertEqual((self.mem / "knowledge/notes.txt").read_text().splitlines(), ["alpha", "middle", "gamma"])
+        self.assertEqual((self.mem / "knowledge/notes.txt").read_text(encoding="utf-8").splitlines(), ["alpha", "middle", "gamma"])
         self.assertIn("Successfully renamed",
                       self.mt(command="rename", old_path="/memories/knowledge/notes.txt",
                               new_path="/memories/knowledge/final.txt")["content"])
@@ -709,7 +711,7 @@ class TestMemoryTool(BrainCase):
 
     def test_path_traversal_is_refused(self):
         outside = self.tmp / "secret.md"
-        outside.write_text("SECRET\n")
+        outside.write_text("SECRET\n", encoding="utf-8")
         for path in ("/memories/../../secret.md", "/memories/../../../../etc/passwd",
                      "%2e%2e%2f%2e%2e%2fsecret.md", "/etc/passwd", "../secret.md", "/memories/./../secret.md"):
             r = self.mt(command="view", path=path)
@@ -734,16 +736,16 @@ class TestConfinement(BrainCase):
     def test_recall_cannot_read_or_write_outside_the_vault(self):
         """Regression: `brain recall ./secret.md` read the file into context and wrote a counter into it."""
         outside = self.tmp / "secret.md"
-        outside.write_text("SECRET DATA\n")
+        outside.write_text("SECRET DATA\n", encoding="utf-8")
         out = self.brain("recall", str(outside))
         self.assertNotIn("SECRET DATA", out)
-        self.assertEqual(outside.read_text(), "SECRET DATA\n")  # untouched
-        self.assertNotIn("recall_count", outside.read_text())
+        self.assertEqual(outside.read_text(encoding="utf-8"), "SECRET DATA\n")  # untouched
+        self.assertNotIn("recall_count", outside.read_text(encoding="utf-8"))
 
 
 class TestCaptureControl(BrainCase):
     def trace(self):
-        return "".join(p.read_text() for p in (self.tmp / "state" / "sensory").glob("*.md"))
+        return "".join(p.read_text(encoding="utf-8") for p in (self.tmp / "state" / "sensory").glob("*.md"))
 
     def test_pause_stops_capture_and_resume_restarts_it(self):
         self.brain("pause")
@@ -758,7 +760,7 @@ class TestCaptureControl(BrainCase):
                   tool_input={"command": "npm test"}, tool_response={"stderr": "2 tests failed"})
         self.assertIn("fail: bash npm test — 2 tests failed", self.trace())
         self.hook("consolidate", session_id="deadbeef0000")
-        episode = "".join(p.read_text() for p in (self.mem / "1-ShortTerm").glob("*.md"))
+        episode = "".join(p.read_text(encoding="utf-8") for p in (self.mem / "1-ShortTerm").glob("*.md"))
         self.assertIn("**Failures:**", episode)
         self.assertIn("npm test", episode)
 
@@ -767,13 +769,13 @@ class TestSafety(BrainCase):
     def test_secrets_are_masked_before_storage(self):
         secret = "ghp_" + "a" * 36
         self.hook("sense", hook_event_name="UserPromptSubmit", prompt="deploy with token %s now" % secret)
-        trace = "".join(p.read_text() for p in (self.tmp / "state" / "sensory").glob("*.md"))
+        trace = "".join(p.read_text(encoding="utf-8") for p in (self.tmp / "state" / "sensory").glob("*.md"))
         self.assertNotIn(secret, trace)
         self.assertIn("[REDACTED]", trace)
 
     def test_private_prompt_text_is_never_stored(self):
         self.hook("sense", hook_event_name="UserPromptSubmit", prompt="remember <private>my salary is 100</private>")
-        trace = "".join(p.read_text() for p in (self.tmp / "state" / "sensory").glob("*.md"))
+        trace = "".join(p.read_text(encoding="utf-8") for p in (self.tmp / "state" / "sensory").glob("*.md"))
         self.assertNotIn("salary", trace)
         self.assertIn("[private]", trace)
 
@@ -782,7 +784,7 @@ class TestSafety(BrainCase):
         env = dict(self.env, PYTHONIOENCODING="cp1252")
         r = subprocess.run([sys.executable, str(ENGINE), "remember", "-t", "semantic", "--global",
                             "Console encoding", "Arrows and dashes — → · must survive."],
-                           capture_output=True, text=True, env=env, timeout=60)
+                           capture_output=True, text=True, encoding="utf-8", env=env, timeout=60)
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertIn("ADDED", r.stdout)
 
@@ -809,7 +811,7 @@ class TestBackwardCompatibility(BrainCase):
                     "BRAIN_NO_SYNC": "1", "BRAIN_CC_PROJECTS": str(tmp / "cc")})
         def run(*args):
             return subprocess.run([sys.executable, str(ENGINE)] + list(args), capture_output=True,
-                                  text=True, env=env, cwd=str(self.tmp), timeout=60)
+                                  text=True, encoding="utf-8", env=env, cwd=str(self.tmp), timeout=60)
         self.assertEqual(0, run("init").returncode)
         self.assertEqual(0, run("remember", "-t", "semantic", "--global", "Legacy", "Still works.").returncode)
         self.assertIn("legacy", run("search", "still works").stdout)
@@ -817,7 +819,7 @@ class TestBackwardCompatibility(BrainCase):
 
     def test_a_vault_stamped_by_the_old_name_is_read_and_then_restamped(self):
         (self.mem / ".humona-schema.json").unlink(missing_ok=True)
-        (self.mem / ".brain-schema.json").write_text('{"schema": 1, "written_by": "2.15.0"}')
+        (self.mem / ".brain-schema.json").write_text('{"schema": 1, "written_by": "2.15.0"}', encoding="utf-8")
         out = self.brain("migrate")          # reads the old marker, writes the new one
         self.assertIn("vault schema 1", out)
         self.assertTrue((self.mem / ".humona-schema.json").exists())
@@ -864,18 +866,18 @@ class TestWrittenInEnglish(unittest.TestCase):
     def test_the_version_agrees_everywhere_it_is_carried(self):
         """Engine, package and plugin manifests. A marketplace entry that disagrees with the
         plugin manifest is the most common reason an install resolves to the wrong version."""
-        eng = re.search(r'VERSION = "([^"]+)"', (REPO / "engine" / "humona.py").read_text()).group(1)
-        proj = re.search(r'^version = "([^"]+)"', (REPO / "pyproject.toml").read_text(), re.M).group(1)
-        man = json.loads((REPO / ".claude-plugin" / "plugin.json").read_text())
-        market = json.loads((REPO / ".claude-plugin" / "marketplace.json").read_text())
+        eng = re.search(r'VERSION = "([^"]+)"', (REPO / "engine" / "humona.py").read_text(encoding="utf-8")).group(1)
+        proj = re.search(r'^version = "([^"]+)"', (REPO / "pyproject.toml").read_text(encoding="utf-8"), re.M).group(1)
+        man = json.loads((REPO / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8"))
+        market = json.loads((REPO / ".claude-plugin" / "marketplace.json").read_text(encoding="utf-8"))
         self.assertEqual(eng, proj)
         self.assertEqual(eng, man["version"])
         self.assertEqual(man["name"], market["plugins"][0]["name"])   # install id == manifest name
         self.assertEqual(eng, market["plugins"][0]["version"])
-        self.assertEqual(eng, json.loads((REPO / "release.json").read_text())["latest"])
+        self.assertEqual(eng, json.loads((REPO / "release.json").read_text(encoding="utf-8"))["latest"])
 
     def test_the_plugin_hooks_point_at_the_shipped_engine(self):
-        hooks = json.loads((REPO / "hooks" / "hooks.json").read_text())["hooks"]
+        hooks = json.loads((REPO / "hooks" / "hooks.json").read_text(encoding="utf-8"))["hooks"]
         cmds = [h["command"] for group in hooks.values() for g in group for h in g["hooks"]]
         self.assertTrue(cmds)
         for c in cmds:
@@ -887,7 +889,7 @@ class TestWrittenInEnglish(unittest.TestCase):
     def test_the_engine_map_is_current(self):
         """A map of a 3,500-line file is only useful while it matches the file."""
         r = subprocess.run([sys.executable, str(REPO / "tools" / "engine_map.py"), "--check"],
-                           capture_output=True, text=True, timeout=60)
+                           capture_output=True, text=True, encoding="utf-8", timeout=60)
         self.assertEqual(0, r.returncode, r.stdout + r.stderr)
 
     def test_the_rules_block_tells_the_model_both_halves_of_the_language_rule(self):
@@ -911,7 +913,7 @@ class TestExactResolution(BrainCase):
         """The reported bug: 1-ShortTerm/<id>.md resolved, the same name without the folder did not."""
         f = self.mem / "1-ShortTerm" / "2026-10-20_claude_85f81a16.md"
         f.parent.mkdir(parents=True, exist_ok=True)
-        f.write_text("---\ntype: short-term\nproject: claude\n---\n## Summary\nThe session we want.\n")
+        f.write_text("---\ntype: short-term\nproject: claude\n---\n## Summary\nThe session we want.\n", encoding="utf-8")
         self.brain("reindex")
         for q in ("2026-10-20_claude_85f81a16", "2026-10-20_claude_85f81a16.md",
                   "1-ShortTerm/2026-10-20_claude_85f81a16.md"):
@@ -934,7 +936,7 @@ class TestExactResolution(BrainCase):
         self.assertIn("would corrupt", out)
         self.assertIn("did you mean", out)
         self.assertNotIn("must not land anywhere",
-                         (self.mem / "3-LongTerm" / "Semantic" / "deploy-target.md").read_text())
+                         (self.mem / "3-LongTerm" / "Semantic" / "deploy-target.md").read_text(encoding="utf-8"))
 
 
 class TestValidity(BrainCase):
@@ -966,12 +968,12 @@ class TestValidity(BrainCase):
         self.write_expired()
         self.brain("facts")                                     # populate the shard
         shard = self.tmp / "state" / "idx-3-longterm.json"
-        data = json.loads(shard.read_text())
+        data = json.loads(shard.read_text(encoding="utf-8"))
         data.pop("__meta_keys__", None)                          # pretend it predates the field
         for k, v in data.items():
             if isinstance(v, list) and len(v) > 3 and isinstance(v[3], dict):
                 v[3].pop("valid_until", None)
-        shard.write_text(json.dumps(data))
+        shard.write_text(json.dumps(data), encoding="utf-8")
         self.assertNotIn("Old price", self.brain("facts"))
 
 
@@ -1020,11 +1022,11 @@ class TestReleaseSafety(BrainCase):
         root = self.tmp / "rel"
         src, user = root / "src", root / "user"
         r = subprocess.run([sys.executable, str(REPO / "setup" / "export_public.py"), str(src)],
-                           capture_output=True, text=True, timeout=180)
+                           capture_output=True, text=True, encoding="utf-8", timeout=180)
         self.assertEqual(0, r.returncode, r.stdout + r.stderr)
         def git(where, *args):
             return subprocess.run(["git", "-C", str(where)] + list(args), capture_output=True,
-                                  text=True, timeout=60,
+                                  text=True, encoding="utf-8", timeout=60,
                                   env=dict(os.environ, GIT_AUTHOR_NAME="t", GIT_AUTHOR_EMAIL="t@t",
                                            GIT_COMMITTER_NAME="t", GIT_COMMITTER_EMAIL="t@t"))
         git(src, "init", "-q")
@@ -1037,7 +1039,7 @@ class TestReleaseSafety(BrainCase):
     def upgrade(self, user, *args):
         env = dict(self.env, HOME=str(self.tmp / "h"))
         return subprocess.run([sys.executable, str(user / "engine" / "humona.py"), "upgrade", "--yes"]
-                              + list(args), capture_output=True, text=True, env=env, timeout=300)
+                              + list(args), capture_output=True, text=True, encoding="utf-8", env=env, timeout=300)
 
     def bump(self, src, git, to="9.9.9"):
         eng = src / "engine" / "humona.py"
@@ -1061,7 +1063,7 @@ class TestReleaseSafety(BrainCase):
         src, user, git = self.publish()
         before = (user / "engine" / "humona.py").read_text(encoding="utf-8")
         self.bump(src, git)
-        man = json.loads((src / "release.json").read_text())
+        man = json.loads((src / "release.json").read_text(encoding="utf-8"))
         man["yanked"] = ["9.9.9"]
         man["notes"] = "9.9.9 eats memory; skip it"
         (src / "release.json").write_text(json.dumps(man), encoding="utf-8")
@@ -1091,7 +1093,7 @@ class TestVaultSafety(BrainCase):
 
     def test_an_older_engine_refuses_to_write_a_newer_vault(self):
         self.brain("remember", "-t", "semantic", "--global", "Before", "Written under schema 1.")
-        (self.mem / ".humona-schema.json").write_text('{"schema": 99, "written_by": "9.9.9"}')
+        (self.mem / ".humona-schema.json").write_text('{"schema": 99, "written_by": "9.9.9"}', encoding="utf-8")
         out = self.brain("remember", "--new", "-t", "semantic", "--global", "After", "Must not land.",
                          expect_ok=False)
         self.assertIn("refusing to write", out)
@@ -1105,7 +1107,7 @@ class TestVaultSafety(BrainCase):
         dest = self.tmp / "restored"
         self.brain("backup", "--restore", archive, "--into", str(dest))
         self.assertIn("Must come back.",
-                      (dest / "memory" / "3-LongTerm" / "Semantic" / "survivor.md").read_text())
+                      (dest / "memory" / "3-LongTerm" / "Semantic" / "survivor.md").read_text(encoding="utf-8"))
 
     def test_restore_refuses_to_overwrite_a_vault_that_holds_notes(self):
         self.brain("remember", "-t", "semantic", "--global", "Mine", "Do not clobber.")
@@ -1183,25 +1185,25 @@ class TestSharedVault(BrainCase):
         self.assertIn("shared/", self.hook("context", hook_event_name="SessionStart"))
 
     def test_recall_reads_a_shared_note_without_writing_to_it(self):
-        before = self.policy.read_text()
+        before = self.policy.read_text(encoding="utf-8")
         out = self.brain("recall", "shared/3-LongTerm/Semantic/deploy-policy.md")
         self.assertIn("Tuesdays only", out)
-        self.assertEqual(before, self.policy.read_text())   # no recall counter, no mtime change
+        self.assertEqual(before, self.policy.read_text(encoding="utf-8"))   # no recall counter, no mtime change
 
     def test_writes_into_the_shared_vault_are_refused(self):
         for args in (("--into", "deploy-policy"), ("--supersedes", "deploy-policy")):
             out = self.brain("remember", "-t", "semantic", "--global", *(args + ("X", "nope")),
                              expect_ok=False)
             self.assertIn("read-only", out)
-        self.assertNotIn("nope", self.policy.read_text())
+        self.assertNotIn("nope", self.policy.read_text(encoding="utf-8"))
 
     def test_maintenance_never_reaches_the_shared_vault(self):
         """doctor --fix repairs frontmatter and lint judges the graph — both only ours."""
-        before = self.policy.read_text()
+        before = self.policy.read_text(encoding="utf-8")
         self.brain("doctor", "--fix", expect_ok=False)
         self.brain("lint")
         self.brain("index")
-        self.assertEqual(before, self.policy.read_text())
+        self.assertEqual(before, self.policy.read_text(encoding="utf-8"))
         self.assertNotIn("deploy-policy", self.brain("lint"))
 
     def test_shared_can_be_pointed_somewhere_and_turned_off(self):
@@ -1209,7 +1211,7 @@ class TestSharedVault(BrainCase):
 
         def run(*args):
             return subprocess.run([sys.executable, str(ENGINE)] + list(args), capture_output=True,
-                                  text=True, env=env, cwd=str(self.tmp), timeout=60).stdout
+                                  text=True, encoding="utf-8", env=env, cwd=str(self.tmp), timeout=60).stdout
         self.assertIn("none", run("shared"))
         self.assertIn("not", run("shared", str(self.tmp)).lower())     # no memory/ there
         self.assertIn("read-only", run("shared", str(self.shared)))
@@ -1223,12 +1225,12 @@ class TestFolderIndexes(BrainCase):
         self.brain("remember", "-t", "procedural", "--global", "How to deploy", "Run the script.")
         core = self.mem / "3-LongTerm" / "Core" / "MEMORY.md"
         core.parent.mkdir(parents=True, exist_ok=True)
-        core.write_text("- [Owned by Claude Code](x.md) — do not touch\n")
+        core.write_text("- [Owned by Claude Code](x.md) — do not touch\n", encoding="utf-8")
         self.brain("index")
         proc = self.mem / "3-LongTerm" / "Procedural" / "MEMORY.md"
         self.assertTrue(proc.exists())
-        self.assertIn("[[how-to-deploy]]", proc.read_text())
-        self.assertEqual(core.read_text(), "- [Owned by Claude Code](x.md) — do not touch\n")
+        self.assertIn("[[how-to-deploy]]", proc.read_text(encoding="utf-8"))
+        self.assertEqual(core.read_text(encoding="utf-8"), "- [Owned by Claude Code](x.md) — do not touch\n")
 
     def test_session_start_reports_how_much_of_the_cap_it_used(self):
         out = self.hook("context", hook_event_name="SessionStart")
@@ -1249,9 +1251,9 @@ class TestInstallLayout(BrainCase):
         env = {k: v for k, v in self.env.items() if k != "HUMONA_VAULT"}
         def run(*args):
             return subprocess.run([sys.executable, str(ENGINE)] + list(args), capture_output=True,
-                                  text=True, env=env, cwd=str(self.tmp), timeout=60)
+                                  text=True, encoding="utf-8", env=env, cwd=str(self.tmp), timeout=60)
         self.assertEqual(run("vault", str(moved)).returncode, 0)
-        cfg = json.loads((self.tmp / "state" / "config.json").read_text())
+        cfg = json.loads((self.tmp / "state" / "config.json").read_text(encoding="utf-8"))
         self.assertEqual(Path(cfg["vault"]).resolve(), moved.resolve())  # macOS /private symlink
         run("init")
         self.assertTrue((moved / "memory" / "3-LongTerm" / "Semantic").is_dir())
@@ -1267,7 +1269,7 @@ class TestInstallLayout(BrainCase):
         self.brain("remember", "-t", "semantic", "--global", "Keep me", "Do not clobber this.")
         other = self.tmp / "other"
         (other / "memory" / "3-LongTerm" / "Semantic").mkdir(parents=True)
-        (other / "memory" / "3-LongTerm" / "Semantic" / "x.md").write_text("---\ntitle: x\n---\nmine\n")
+        (other / "memory" / "3-LongTerm" / "Semantic" / "x.md").write_text("---\ntitle: x\n---\nmine\n", encoding="utf-8")
         out = self.brain("vault", str(other), "--move", expect_ok=False)
         self.assertIn("refusing", out)
         self.assertTrue((self.mem / "3-LongTerm" / "Semantic" / "keep-me.md").exists())
@@ -1278,7 +1280,7 @@ class TestInstallLayout(BrainCase):
         loose.mkdir(parents=True)
         shutil.copy(ENGINE, loose / "humona.py")
         r = subprocess.run([sys.executable, str(loose / "humona.py"), "upgrade"], capture_output=True,
-                           text=True, env=self.env, cwd=str(self.tmp), timeout=60)
+                           text=True, encoding="utf-8", env=self.env, cwd=str(self.tmp), timeout=60)
         self.assertEqual(r.returncode, 1)
         self.assertIn("not a git checkout", r.stdout)
         self.assertIn("install.py", r.stdout)
@@ -1288,7 +1290,7 @@ class TestInstallLayout(BrainCase):
         per question, or the accuracy it prints is not measuring what it claims."""
         r = subprocess.run([sys.executable, str(REPO / "tools" / "bench.py"), "--notes", "10",
                             "--queries", "3", "--repeat", "1", "--json"],
-                           capture_output=True, text=True, timeout=180)
+                           capture_output=True, text=True, encoding="utf-8", timeout=180)
         self.assertEqual(r.returncode, 0, r.stderr)
         res = json.loads(r.stdout)
         for axis in ("cost", "speed", "accuracy", "usability", "reproduce"):
@@ -1306,21 +1308,22 @@ class TestInstallLayout(BrainCase):
         # which the installer rightly reads as "upgrade this vault" instead of "make a new one"
         code = self.tmp / "code"
         ex = subprocess.run([sys.executable, str(REPO / "setup" / "export_public.py"), str(code)],
-                            capture_output=True, text=True, timeout=120)
+                            capture_output=True, text=True, encoding="utf-8", timeout=120)
         self.assertEqual(ex.returncode, 0, ex.stdout + ex.stderr)
         self.assertTrue((code / "AGENTS.md").exists(), "the agent install guide must ship")
         env = {k: v for k, v in os.environ.items()
                if k not in ("HUMONA_VAULT", "HUMONA_STATE", "BRAIN_VAULT", "BRAIN_STATE", "HUMONA_CC_PROJECTS", "VIRTUAL_ENV")}
         env["HOME"] = str(home)
+        env["USERPROFILE"] = str(home)   # Path.home() reads this one on Windows
         r = subprocess.run([sys.executable, str(code / "setup" / "install.py")],
-                           capture_output=True, text=True, env=env, timeout=180)
+                           capture_output=True, text=True, encoding="utf-8", env=env, timeout=180)
         self.assertEqual(r.returncode, 0, r.stderr)
         vault = home / "humona" / "vault"
         self.assertTrue((vault / "memory" / "3-LongTerm" / "Semantic").is_dir(), r.stdout)
         self.assertTrue((home / ".claude" / "settings.json").exists())
         self.assertIn("humona:start", (home / ".claude" / "CLAUDE.md").read_text(encoding="utf-8"))
         doc = subprocess.run([sys.executable, str(code / "engine" / "humona.py"), "doctor"],
-                             capture_output=True, text=True, env=env, timeout=120)
+                             capture_output=True, text=True, encoding="utf-8", env=env, timeout=120)
         self.assertNotIn("FAIL", doc.stdout, doc.stdout)
         # the installed vault must not be the code checkout: an upgrade would then touch notes
         self.assertNotIn(str(code), vault.as_posix())

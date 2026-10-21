@@ -2279,7 +2279,8 @@ def cmd_card(a):
 
 def walk_files(root):
     try:
-        out = subprocess.run(["git", "-C", str(root), "ls-files"], capture_output=True, text=True, timeout=10).stdout
+        out = subprocess.run(["git", "-C", str(root), "ls-files"], capture_output=True, text=True,
+                         encoding="utf-8", errors="replace", timeout=10).stdout
         if out.strip():
             return out.splitlines()
     except Exception:
@@ -2993,7 +2994,8 @@ def git(*args, timeout=15):
     try:
         pr = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                               stdin=subprocess.DEVNULL, text=True,
-                              env=dict(os.environ, **GIT_ENV), **kw)
+                              encoding="utf-8", errors="replace",   # git speaks UTF-8; a Windows
+                              env=dict(os.environ, **GIT_ENV), **kw)  # console would say cp1252
     except OSError as e:
         return subprocess.CompletedProcess(cmd, 127, "", str(e))
     try:
@@ -3438,7 +3440,14 @@ def cmd_doctor(a):
                ] if sk.exists() and all((Path.home() / ".claude" / "skills" / d.name / "SKILL.md").exists() for d in sk.iterdir()) else ["(not installed)"]
     check("skills installed & current", not missing,
           "run `python3 %s` (%s)" % (CODE / "setup" / "install.py", ", ".join(missing)))
-    check("`humona` on PATH", shutil.which(NAME) is not None, "run setup/install.py and restart terminal")
+    # The launcher is installed; whether this *process* sees it depends on the shell having
+    # re-read PATH, which a fresh terminal (or a CI step) has not done. Report the install, not
+    # the shell: a freshly installed machine would otherwise fail its own doctor.
+    launcher = next((f for n in (NAME, NAME + ".cmd") if (f := Path.home() / ".local" / "bin" / n).exists()), None)
+    check("`humona` on PATH" if shutil.which(NAME) else
+          "`humona` at %s  (restart the terminal to pick it up)" % launcher,
+          shutil.which(NAME) is not None or launcher is not None,
+          "run setup/install.py and restart terminal")
     if (VAULT / ".git").exists():
         fixed = repair_repo() if a.fix else []
         for f in fixed:
@@ -3491,7 +3500,8 @@ def code_git(*args, timeout=20):
     try:
         pr = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                               stdin=subprocess.DEVNULL, text=True,
-                              env=dict(os.environ, **GIT_ENV), **kw)
+                              encoding="utf-8", errors="replace",   # git speaks UTF-8; a Windows
+                              env=dict(os.environ, **GIT_ENV), **kw)  # console would say cp1252
         out, err = pr.communicate(timeout=timeout)
     except subprocess.TimeoutExpired:
         try:
