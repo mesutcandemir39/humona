@@ -1,0 +1,14 @@
+{
+  "name": "humona",
+  "version": "0.0.1",
+  "description": "Human-inspired memory for AI agents — early name registration; install from GitHub until the packaged release lands",
+  "keywords": ["humona", "memory", "claude-code", "agent", "mcp", "obsidian", "ai"],
+  "homepage": "https://github.com/mesutcandemir39/humona#readme",
+  "bugs": "https://github.com/mesutcandemir39/humona/issues",
+  "repository": { "type": "git", "url": "git+https://github.com/mesutcandemir39/humona.git" },
+  "license": "MIT",
+  "author": "Mesut Can Demir",
+  "bin": { "humona": "bin/humona.js" },
+  "files": ["bin/humona.js", "README.md", "LICENSE"],
+  "engines": { "node": ">=18" }
+}

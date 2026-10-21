@@ -875,6 +875,12 @@ class TestWrittenInEnglish(unittest.TestCase):
         self.assertEqual(man["name"], market["plugins"][0]["name"])   # install id == manifest name
         self.assertEqual(eng, market["plugins"][0]["version"])
         self.assertEqual(eng, json.loads((REPO / "release.json").read_text(encoding="utf-8"))["latest"])
+        # The npm wrapper carries its own version on purpose — it is a pointer, not the engine —
+        # but its identity has to be ours, or `npm publish --provenance` signs somebody else's.
+        npm = json.loads((REPO / "packaging" / "npm" / "package.json").read_text(encoding="utf-8"))
+        self.assertEqual("humona", npm["name"])
+        self.assertIn("mesutcandemir39/humona", npm["repository"]["url"])
+        self.assertEqual("MIT", npm["license"])
 
     def test_the_plugin_hooks_point_at_the_shipped_engine(self):
         hooks = json.loads((REPO / "hooks" / "hooks.json").read_text(encoding="utf-8"))["hooks"]
