@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "humona"
-version = "3.0.0"
+version = "3.0.1"
 description = "Human-inspired memory for AI agents: a Markdown vault, git sync, zero dependencies"
 readme = "README.md"
 license = { text = "MIT" }

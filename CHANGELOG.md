@@ -1,5 +1,27 @@
 # Changelog
 
+## 3.0.1 — 2026-10-21 — installable from PyPI and npm
+PATCH: nothing you type changes meaning. The engine is the same; what changed is that the two
+registry packages now carry a working install instead of a pointer.
+
+**Fixed**
+- `pip install humona` installs a working engine. The wheel carried `engine/humona.py` alone, so
+  an installed copy had no skills, no hooks and no installer: in a clean venv `humona doctor`
+  passed 8 of 21 checks, and the vault defaulted inside `site-packages`, which the next
+  `pip install -U` replaces. Both packages now ship the mini-checkout the engine expects, and in a
+  clean environment doctor passes 22/22 after the bundled `setup/install.py` runs.
+- `npm install -g humona` runs the engine. The wrapper used to print where the real install lived;
+  it now chooses a Python interpreter, hands over argv and passes the exit code back, and says what
+  to install if no Python 3.8+ is on PATH.
+- `humona upgrade` names the registry a copy came from — `pip install -U humona` or
+  `npm install -g humona@latest` — instead of reporting that it is not a git checkout.
+
+**Internal**
+- `packaging/payload.py` stages the mini-checkout for both registries; `packaging/pypi/build.py`
+  and `packaging/npm/build.py` build from it. Never `uv build` or `npm publish` at the root: both
+  ship the code without the payload. The release workflow installs each package and runs its
+  doctor before publishing.
+
 ## 3.0.0 — 2026-10-21 — **humona**
 The project has a name. `brain` was a description; **humona** — human + memory — is a name the
 product can carry, with a logo and an identity of its own. MAJOR because the command changed, even

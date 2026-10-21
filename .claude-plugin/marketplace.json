@@ -10,7 +10,7 @@
       "name": "humona",
       "source": ".",
       "description": "Memory that survives every session: project cards, working memory, tasks, long-term notes and episodes, injected at session start for ~480 tokens.",
-      "version": "3.0.0"
+      "version": "3.0.1"
     }
   ]
 }

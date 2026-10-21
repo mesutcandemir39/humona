@@ -1343,17 +1343,17 @@ class TestInstallLayout(BrainCase):
         self.assertNotIn("VAULT", body)
 
 
-class TestWheelInstall(BrainCase):
-    """A wheel has no checkout around the engine, so `packaging/pypi/build.py` ships a mini-checkout
-    at `humona/_payload/` and marks it with PYPI_WHEEL. Both things the marker controls are here,
-    because a refactor that drops it breaks a pip install silently rather than loudly."""
+class TestPackagedInstall(BrainCase):
+    """Neither registry package has a checkout around the engine, so each ships a mini-checkout at
+    `_payload/` and marks it with the registry's name. Both things the marker controls are here,
+    because a refactor that drops it breaks an installed copy silently rather than loudly."""
 
-    def payload(self):
-        """The layout a wheel installs: engine/humona.py beside the marker, no .git anywhere."""
-        root = self.tmp / "site-packages" / "humona" / "_payload"
+    def payload(self, registry="pypi"):
+        """The layout a package installs: engine/humona.py beside the marker, no .git anywhere."""
+        root = self.tmp / registry / "humona" / "_payload"
         (root / "engine").mkdir(parents=True)
         shutil.copy(ENGINE, root / "engine" / "humona.py")
-        (root / "PYPI_WHEEL").write_text("test\n", encoding="utf-8")
+        (root / "PACKAGED").write_text(registry + "\n", encoding="utf-8")
         return root
 
     def run_payload(self, root, *args, **kw):
@@ -1362,11 +1362,17 @@ class TestWheelInstall(BrainCase):
                               capture_output=True, text=True, encoding="utf-8", env=env,
                               cwd=str(self.tmp), timeout=60)
 
-    def test_upgrade_points_at_pip_instead_of_git(self):
-        r = self.run_payload(self.payload(), "upgrade")
-        self.assertEqual(r.returncode, 1)
-        self.assertIn("pip install -U humona", r.stdout)
-        self.assertNotIn("git clone", r.stdout)
+    def test_upgrade_names_the_registry_it_came_from(self):
+        for registry, how in (("pypi", "pip install -U humona"),
+                              ("npm", "npm install -g humona@latest")):
+            r = self.run_payload(self.payload(registry), "upgrade")
+            self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+            self.assertIn(how, r.stdout)
+            self.assertNotIn("git clone", r.stdout)
+
+    def test_a_checkout_still_upgrades_with_git(self):
+        """The marker must not be read where there is a real checkout to fetch from."""
+        self.assertEqual(self.brain("upgrade", expect_ok=False).count("pip install"), 0)
 
     def test_vault_never_defaults_inside_site_packages(self):
         """site-packages is replaced on every `pip install -U`, so memory there would be deleted."""

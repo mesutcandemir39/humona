@@ -25,14 +25,18 @@ import unicodedata
 from collections import Counter
 from pathlib import Path
 
-VERSION = "3.0.0"
+VERSION = "3.0.1"
 NAME = "humona"             # the product; `humona` stays as an alias for installs made before 3.0
 TAG = "humona"              # prefix of the XML elements the hooks inject
 RULES_START = "<!-- humona:start -->"
 RULES_END = "<!-- humona:end -->"
 CODE = Path(__file__).resolve().parents[1]  # the checkout: engine/, setup/, skills/, tests/
-# A wheel has no checkout to pull from, so it bundles the payload as a mini-checkout and marks it.
-WHEEL = (CODE / "PYPI_WHEEL").exists()
+# A registry package has no checkout to pull from, so it bundles the payload as a mini-checkout and
+# marks it with the registry's name — the one thing `upgrade` and the vault fallback need to know.
+# Not a dotfile: setuptools' package-data globs skip dot-entries, so the marker would not ship.
+_MARKER = CODE / "PACKAGED"
+PACKAGED = _MARKER.read_text(encoding="utf-8").strip() if _MARKER.is_file() else ""
+PACKAGED_UPGRADE = {"pypi": "pip install -U humona", "npm": "npm install -g humona@latest"}
 # True when Claude Code is running us from a plugin it installed. Set for hook, MCP and LSP
 # processes; the path check covers a `bin/humona` call, which the plugin puts on PATH.
 PLUGIN = bool(os.environ.get("CLAUDE_PLUGIN_ROOT")) or "/plugins/" in CODE.as_posix()
@@ -89,10 +93,10 @@ def _vault_dir():
             return Path(cfg["vault"]).expanduser()
     except Exception:
         pass
-    if PLUGIN or WHEEL:
-        # Installed as a Claude Code plugin, or from a wheel: a plugin gets a fresh cache directory
-        # per version and a wheel's payload is replaced inside site-packages, so the code is the one
-        # place memory must never live. `~/humona/vault` is the documented default the installer
+    if PLUGIN or PACKAGED:
+        # Installed as a Claude Code plugin, or from a registry: a plugin gets a fresh cache
+        # directory per version and a package's payload is replaced wholesale on upgrade, so the
+        # code is the one place memory must never live. `~/humona/vault` is the documented default the installer
         # also picks, which keeps every install path on the same vault.
         return Path.home() / NAME / "vault"
     return CODE
@@ -3573,8 +3577,9 @@ def cmd_upgrade(a):
     local edit can only stop the upgrade, not be silently rewritten), then the test suite, the
     installer and doctor. Nothing is applied before the user sees the version it moves to.
     """
-    if WHEEL:
-        print("installed from a wheel — upgrade with:\n  pip install -U %s" % NAME)
+    if PACKAGED:
+        how = PACKAGED_UPGRADE.get(PACKAGED, "reinstall from %s" % PACKAGED)
+        print("installed from %s — upgrade with:\n  %s" % (PACKAGED, how))
         return 1
     if not (CODE / ".git").exists():
         print("not a git checkout: %s\n  reinstall with: git clone <repo> && python3 setup/install.py" % CODE)
@@ -3673,7 +3678,7 @@ def cmd_vault(a):
         print("set by: %s" % ("HUMONA_VAULT" if envvar("VAULT") else
                               "installer config (%s)" % (STATE / "config.json") if cfg.get("vault")
                               else "default (~/%s/vault — no checkout to fall back on)" % NAME
-                              if PLUGIN or WHEEL else "default (the checkout itself)"))
+                              if PLUGIN or PACKAGED else "default (the checkout itself)"))
         return 0
     dest = Path(a.dir).expanduser().resolve()
     if a.move and MEM.is_dir():

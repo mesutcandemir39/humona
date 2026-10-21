@@ -83,6 +83,20 @@ jobs:
         with:
           node-version: "24"   # ships an npm new enough for OIDC; the floor is npm 11.5.1
           registry-url: https://registry.npmjs.org
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
       - run: npm install -g npm@latest
-      - run: npm publish --provenance --access public
-        working-directory: packaging/npm
+      # Not `npm publish` in packaging/npm: that directory holds the wrapper without the payload
+      # the engine needs. The build stages both. See packaging/README.md.
+      - name: the packed tarball must pass its own doctor
+        run: |
+          python3 packaging/npm/build.py -o dist
+          npm install -g --prefix /tmp/npmcheck dist/humona-*.tgz
+          mkdir -p /tmp/npmhome
+          python3 /tmp/npmcheck/lib/node_modules/humona/_payload/setup/install.py
+        env:
+          HOME: /tmp/npmhome
+      - run: HOME=/tmp/npmhome /tmp/npmcheck/bin/humona doctor | tee /tmp/npmdoctor
+      - run: grep -q "checks passed" /tmp/npmdoctor && ! grep -q FAIL /tmp/npmdoctor
+      - run: python3 packaging/npm/build.py --publish

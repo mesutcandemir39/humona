@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """Build the PyPI wheel from a staging copy, so the checkout's own layout never has to change.
 
-The engine needs a payload beside it — skills/, setup/, hooks/, AGENTS.md — and resolves it as
-`CODE = parents[1]`, the repo root. A wheel has no repo, and setuptools cannot ship data files
-next to a bare module. So the wheel gets a complete mini-checkout at `humona/_payload/`, with
-the engine at its usual place inside it, and `humona/__init__.py` is a shim that loads it and
-re-exports `main` for the console script. That way `CODE = parents[1]` lands on `_payload` with
-no special case in the engine, and `setup/install.py` runs there unmodified.
+The engine needs a payload beside it and resolves it as `CODE = parents[1]`, the repo root.
+A wheel has no repo, and setuptools cannot ship data files next to a bare module. So the wheel
+gets a complete mini-checkout at `humona/_payload/`, with the engine at its usual place inside
+it, and `humona/__init__.py` is a shim that loads it and re-exports `main` for the console
+script. `CODE = parents[1]` then lands on `_payload` with no special case in the engine, and
+`setup/install.py` runs there unmodified.
 
     python3 packaging/pypi/build.py            # build into dist/
     python3 packaging/pypi/build.py -o /tmp/x  # or somewhere else
@@ -18,12 +18,10 @@ import sys
 import tempfile
 from pathlib import Path
 
-REPO = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+import payload  # noqa: E402  (the shared mini-checkout, one directory up)
 
-# What an installed copy needs to work. `tests/` and `tools/` are developer-only; `memory/` is the
-# user's own vault and must never ship; `docs/` is 2.9 MB of GIFs that a wheel has no use for.
-PAYLOAD_DIRS = ["engine", "setup", "skills", "hooks", "bin"]
-PAYLOAD_FILES = ["AGENTS.md", "LICENSE", "README.md", "CHANGELOG.md"]
+REPO = payload.REPO
 
 SHIM = '''"""humona — installed from a wheel.
 
@@ -64,25 +62,8 @@ humona = ["_payload/**/*"]
 
 def stage(root):
     pkg = root / "humona"
-    payload = pkg / "_payload"
-    payload.mkdir(parents=True)
-
-    for name in PAYLOAD_DIRS:
-        src = REPO / name
-        if not src.is_dir():
-            sys.exit("missing payload directory: %s" % name)
-        shutil.copytree(src, payload / name,
-                        ignore=shutil.ignore_patterns("__pycache__", "*.pyc", ".venv"))
-    for name in PAYLOAD_FILES:
-        src = REPO / name
-        if not src.is_file():
-            sys.exit("missing payload file: %s" % name)
-        shutil.copy2(src, payload / name)
-
-    # The engine reads this to know it cannot upgrade itself with git. Not a dotfile: setuptools'
-    # package-data globs skip dot-entries, so a `.wheel` marker would silently not ship.
-    (payload / "PYPI_WHEEL").write_text("built by packaging/pypi/build.py\n", encoding="utf-8")
-
+    pkg.mkdir(parents=True)
+    payload.stage(pkg / "_payload", "pypi")
     (pkg / "__init__.py").write_text(SHIM, encoding="utf-8")
     (root / "pyproject.toml").write_text(read_metadata(), encoding="utf-8")
     shutil.copy2(REPO / "LICENSE", root / "LICENSE")

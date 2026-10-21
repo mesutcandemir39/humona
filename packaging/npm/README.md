@@ -3,28 +3,46 @@
 **Human-inspired memory for AI agents.** Markdown notes in a git repository you own — no
 database, no service, no inference to remember.
 
-This PyPI release is **0.0.1: the name, registered ahead of the packaged release.** The engine
-itself is complete, tested on macOS, Linux and Windows, and in daily use — but it is installed
-from its repository, because a pip install cannot yet carry the hooks, skills and installer
-that make it work.
+```bash
+npm install -g humona
+humona doctor
+```
 
-## Install the working engine
+The engine is a single standard-library Python file, so this package needs **Python 3.8+** on
+PATH and nothing else. It carries the engine and everything it needs; the Node wrapper only
+chooses an interpreter and hands over your arguments.
 
-As a Claude Code plugin:
+## Setting it up
+
+Installing the package puts `humona` on your PATH. Wiring it into Claude Code — the hooks, the
+skills and the always-loaded rules — is a separate, explicit step, because it writes to
+`~/.claude`:
+
+```bash
+humona update
+```
+
+Then restart Claude Code and run `humona doctor`; every check must say `OK`.
+
+## If you use Claude Code
+
+The plugin is the shorter path, and it updates the way every other plugin does:
 
 ```
 /plugin marketplace add mesutcandemir39/humona
 /plugin install humona@humona
 ```
 
-Standalone:
+## Upgrading
 
 ```bash
-git clone https://github.com/mesutcandemir39/humona.git ~/humona-src
-python3 ~/humona-src/setup/install.py
+npm install -g humona@latest
 ```
 
-Everything — the measurements, the architecture, the SWOT and the comparison with other memory
-systems — is at **https://github.com/mesutcandemir39/humona**.
+Your notes are never touched by an upgrade: the vault lives in `~/humona/vault`, deliberately
+outside the code.
 
-MIT licensed.
+Full documentation, the measured benchmarks and the SWOT:
+<https://github.com/mesutcandemir39/humona>
+
+MIT
