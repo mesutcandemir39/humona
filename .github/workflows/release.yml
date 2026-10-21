@@ -92,7 +92,7 @@ jobs:
       - name: the packed tarball must pass its own doctor
         run: |
           python3 packaging/npm/build.py -o dist
-          npm install -g --prefix /tmp/npmcheck dist/humona-*.tgz
+          npm install -g --prefix /tmp/npmcheck "$PWD"/dist/humona-*.tgz
           mkdir -p /tmp/npmhome
           python3 /tmp/npmcheck/lib/node_modules/humona/_payload/setup/install.py
         env:

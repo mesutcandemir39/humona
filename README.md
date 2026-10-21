@@ -14,7 +14,9 @@
   <a href="#measured-and-reproducible-by-you"><img alt="platforms" src="https://img.shields.io/badge/tested%20on-macOS%20%C2%B7%20Linux%20%C2%B7%20Windows-10b981?style=flat-square"></a>
   <a href="pyproject.toml"><img alt="python" src="https://img.shields.io/badge/python-3.8%2B-10b981?style=flat-square&logo=python&logoColor=white"></a>
   <a href="#install"><img alt="dependencies" src="https://img.shields.io/badge/runtime%20deps-0-10b981?style=flat-square"></a>
-  <a href="LICENSE"><img alt="license" src="https://img.shields.io/badge/license-MIT-10b981?style=flat-square"></a>
+  <a href="LICENSE"><img alt="license" src="https://img.shields.io/badge/license-MIT-10b981?style=flat-square"></a><br>
+  <a href="https://pypi.org/project/humona/"><img alt="PyPI" src="https://img.shields.io/pypi/v/humona?style=flat-square&logo=pypi&logoColor=white&label=pypi&color=10b981"></a>
+  <a href="https://www.npmjs.com/package/humona"><img alt="npm" src="https://img.shields.io/npm/v/humona?style=flat-square&logo=npm&label=npm&color=10b981"></a>
 </p>
 
 <p align="center">
@@ -54,8 +56,16 @@ the MCP server all arrive with it, and updates come through Claude Code like any
 /plugin install humona@humona
 ```
 
-**Or as a standalone install**, if you want `humona` on your PATH everywhere and the rules written
-into your own `~/.claude/CLAUDE.md`:
+**Or from a registry**, if you just want the command on your PATH. Both packages carry the engine,
+the skills and the installer; `humona update` is the step that writes the hooks into `~/.claude`,
+kept separate because it touches your configuration:
+
+```bash
+pip install humona && humona update        # needs Python 3.8+
+npm install -g humona && humona update     # the same engine; needs Python 3.8+ on PATH too
+```
+
+**Or from the checkout**, which is the one install that can `humona upgrade` itself from git:
 
 ```bash
 git clone https://github.com/mesutcandemir39/humona.git ~/humona-src
@@ -268,7 +278,10 @@ to the heuristic.
 
 **Plugin users**: Claude Code delivers the update; nothing to run.
 
-**Standalone**: `humona upgrade` — fetch, print the version and the file diff, check the release
+**From a registry**: `pip install -U humona` or `npm install -g humona@latest`. `humona upgrade`
+names the right one for you — a package has no checkout to fetch from, so it cannot update itself.
+
+**From the checkout**: `humona upgrade` — fetch, print the version and the file diff, check the release
 manifest (a yanked version is refused), optionally verify the tag's GPG signature, fast-forward
 only, run the test suite on the new code, re-apply setup, then run `doctor` — **and reset back to
 the previous commit if that health check fails.** Your memory is never a target of any step; a test
