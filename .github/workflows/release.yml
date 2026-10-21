@@ -79,7 +79,7 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@v5
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5   # v4 targets Node 20, which the runners now refuse
         with:
           node-version: "24"   # ships an npm new enough for OIDC; the floor is npm 11.5.1
           registry-url: https://registry.npmjs.org
