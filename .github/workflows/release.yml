@@ -48,6 +48,17 @@ jobs:
           python-version: "3.12"
       - run: python -m pip install --quiet build
       - run: python -m build
+      # The wheel is what the user gets, so the wheel is what gets checked — not the checkout
+      # it was built from. Today it would fail this: the package carries the module without the
+      # hooks, skills and installer. That is exactly why the gate is here and not in a TODO.
+      - name: the built wheel must pass its own doctor
+        run: |
+          python -m venv /tmp/wheelcheck
+          /tmp/wheelcheck/bin/pip install --quiet dist/*.whl
+          out=$(HOME=/tmp/wheelhome /tmp/wheelcheck/bin/humona doctor || true)
+          echo "$out"
+          echo "$out" | grep -q FAIL && { echo "::error::the wheel is not installable as a working engine"; exit 1; }
+          echo "$out" | grep -q "checks passed"
       - uses: pypa/gh-action-pypi-publish@release/v1
 
   npm:

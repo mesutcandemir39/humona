@@ -1,0 +1,10 @@
+# The engine has no runtime dependencies; the actions in the workflows are the only thing to
+# keep current, and a deprecated runner image is how a green CI quietly stops being green.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: "ci"

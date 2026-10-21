@@ -7,7 +7,7 @@ engine driven by hooks. The vault in `memory/` is the user's own memory; the cod
 - `python3 tests/test_humona.py` — 49 stdlib tests, ~30 s, no network. Run it before every push;
   this repo has **no CI** (private repos meter Actions minutes). `setup/export_public.py` ships the
   workflow to the public copy instead.
-- `humona doctor` — 24 checks on the installation (hooks, PATH, git, frontmatter, caps, secrets).
+- `humona doctor` — checks the installation (hooks, PATH, git, frontmatter, caps, secrets); every line must say `OK`.
 - `humona lint` — health of the knowledge graph (broken links, orphans, stale, duplicates).
 
 ## Layout

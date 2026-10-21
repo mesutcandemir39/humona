@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Question or idea
+    url: https://github.com/mesutcandemir39/humona/discussions
+    about: Ask how something works, or float an idea before opening an issue.
+  - name: Security report
+    url: https://github.com/mesutcandemir39/humona/security/policy
+    about: A vulnerability is reported privately, never as a public issue.

@@ -4,9 +4,9 @@ The engine is one file with no dependencies, because it runs as a Claude Code ho
 and must start in ~0.1 s. Patches that keep that property are easy to accept.
 
 ## Before a pull request
-1. `python3 tests/test_humona.py` — 52 stdlib tests, no network, each in a throwaway vault. Add one
+1. `python3 tests/test_humona.py` — stdlib tests, no network, each in a throwaway vault. Add one
    for whatever you change; every bug fixed so far has a regression test named after it.
-2. `humona doctor` — 24 checks on the installation.
+2. `humona doctor` — every line must say `OK`.
 3. `humona lint` — the knowledge graph of your own vault, if you use one.
 
 CI runs the same suite on Ubuntu, macOS and Windows against Python 3.9 and 3.12.
